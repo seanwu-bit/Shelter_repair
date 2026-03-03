@@ -408,14 +408,14 @@ class ShelterDataFixer:
             return None, None
     
     def fix_coordinates(self):
-        """修正問題座標"""
+        """修正問題座標 - 只檢查邊界外的座標"""
         logging.info("開始修正座標...")
         
-        all_problem_records = self.outliers + self.sea_locations
+        # 只處理邊界外的座標，不檢查海上座標
         fixed_coords = []
         removed_records = []
         
-        for record in all_problem_records:
+        for record in self.outliers:
             idx = record['index']
             address = str(record['避難收容處所地址'])
             name = str(record['避難收容處所名稱'])
@@ -430,6 +430,7 @@ class ShelterDataFixer:
                     '原緯度': record.get('原緯度', record.get('緯度'))
                 }
                 removed_records.append(removed_info)
+                self.df_sorted = self.df_sorted.drop(idx)
                 continue
             
             # 搜尋正確座標
@@ -437,9 +438,9 @@ class ShelterDataFixer:
             new_lat, new_lon = self.search_correct_coordinates(search_query)
             
             if new_lat is not None and new_lon is not None:
-                # 更新座標（精度到小數點後第三位）
-                self.df_sorted.at[idx, '經度'] = round(new_lon, 3)
-                self.df_sorted.at[idx, '緯度'] = round(new_lat, 3)
+                # 更新座標（精度到小數點後第六位）
+                self.df_sorted.at[idx, '經度'] = round(new_lon, 6)
+                self.df_sorted.at[idx, '緯度'] = round(new_lat, 6)
                 
                 fixed_info = {
                     '序號': record['序號'],
@@ -447,8 +448,8 @@ class ShelterDataFixer:
                     '地址': address,
                     '原經度': record.get('原經度', record.get('經度')),
                     '原緯度': record.get('原緯度', record.get('緯度')),
-                    '新經度': round(new_lon, 3),
-                    '新緯度': round(new_lat, 3)
+                    '新經度': round(new_lon, 6),
+                    '新緯度': round(new_lat, 6)
                 }
                 fixed_coords.append(fixed_info)
                 logging.info(f"修正座標: {name}")
@@ -457,23 +458,12 @@ class ShelterDataFixer:
                 removed_info = {
                     '序號': record['序號'],
                     '避難收容處所名稱': name,
-                    '地址': address,
                     '原因': '無法找到正確座標',
                     '原經度': record.get('原經度', record.get('經度')),
                     '原緯度': record.get('原緯度', record.get('緯度'))
                 }
                 removed_records.append(removed_info)
-                logging.warning(f"移除記錄: {name} - 無法找到正確座標")
-        
-        # 移除被標記刪除的記錄
-        indices_to_remove = [record['index'] for record in all_problem_records 
-                           if any(r['序號'] == record['序號'] for r in removed_records)]
-        
-        if indices_to_remove:
-            self.df_sorted = self.df_sorted.drop(indices_to_remove)
-        
-        # 重新編號
-        self.df_sorted['序號'] = range(1, len(self.df_sorted) + 1)
+                self.df_sorted = self.df_sorted.drop(idx)
         
         self.fixed_coordinates = fixed_coords
         self.removed_records = removed_records
