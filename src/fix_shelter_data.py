@@ -562,11 +562,10 @@ def main():
     # 重新排序
     fixer.sort_by_location()
     
-    # 檢查座標問題
+    # 檢查座標問題（只檢查邊界外座標）
     outliers = fixer.check_coordinate_bounds()
-    sea_locations = fixer.check_sea_locations()
     
-    # 修正座標
+    # 修正座標（只處理邊界外的座標）
     fixer.fix_coordinates()
     
     # 儲存修正後的資料
